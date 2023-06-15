@@ -24,8 +24,48 @@ class MyWindow : Window {
       mStride = mBmp.BackBufferStride;
       image.Source = mBmp;
       Content = image;
+      MouseDown += OnMouseDown;
+      //Octagon
+      DrawLine (new Point (300, 100), new Point (400,100));
+      DrawLine (new Point (400, 100), new Point (500,200));
+      DrawLine (new Point (500, 200), new Point (500, 300));
+      DrawLine (new Point (500, 300), new Point (400, 400));
+      DrawLine (new Point (400, 400), new Point (300, 400));
+      DrawLine (new Point (300, 400), new Point (200, 300));
+      DrawLine (new Point (200, 300), new Point (200, 200));
+      DrawLine (new Point (200, 200), new Point (300, 100));
+      //DrawMandelbrot (-0.5, 0, 1);
+   }
 
-      DrawMandelbrot (-0.5, 0, 1);
+   void OnMouseDown (object sender, MouseButtonEventArgs e) {
+      var pos = e.GetPosition (this);
+      if (mPrev == null) { mPrev = pos; return; }
+      DrawLine (mPrev.Value, pos);
+      mPrev = null;
+   }
+   Point? mPrev;
+
+   void DrawLine (Point a, Point b) {
+      int x0 = (int)a.X, y0 = (int)a.Y, x1 = (int)b.X, y1 = (int)b.Y;
+      int dx = x1 - x0, dy = y1 - y0, add = 1;
+      bool swap = Math.Abs (dy) > Math.Abs (dx);
+      if (swap) (x0, y0, x1, y1) = (y0, x0, y1, x1);
+      if (x1 < x0) (x0, y0, x1, y1) = (x1, y1, x0, y0);
+      (dx, dy) = (x1 - x0, y1 - y0);
+      if (y1 < y0) { add = -1; dy = Math.Abs (dy); }
+      int y = y0, d = 2 * dy - dx;
+      try {
+         mBmp.Lock ();
+         mBase = mBmp.BackBuffer;
+         for (int x = x0; x <= x1; x++) {
+            if (swap) SetPixel (y, x, 255);
+            else SetPixel (x, y, 255);
+            if (d >= 0) { y = y + add; d += 2 * (dy - dx); } else d += 2 * dy;
+         }
+         mBmp.AddDirtyRect (new Int32Rect (0, 0, mBmp.PixelWidth, mBmp.PixelHeight));
+      } finally {
+         mBmp.Unlock ();
+      }
    }
 
    void DrawMandelbrot (double xc, double yc, double zoom) {
