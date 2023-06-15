@@ -24,9 +24,58 @@ class MyWindow : Window {
       mStride = mBmp.BackBufferStride;
       image.Source = mBmp;
       Content = image;
-
-      DrawMandelbrot (-0.5, 0, 1);
+      MouseDown += OnMouseDown;
+      //DrawMandelbrot (-0.5, 0, 1);
    }
+
+
+    void OnMouseDown (object s, MouseEventArgs e) {
+        var pt = e.GetPosition (this);
+        if (mStart.X == -1) {
+            mStart = pt;
+            return;
+        }
+        DrawLine ((int)mStart.X, (int)mStart.Y, (int)pt.X, (int)pt.Y);
+        mStart = new Point (-1, -1);
+    }
+    Point mStart = new(-1, -1);
+
+    public void DrawLine (int x1, int y1, int x2, int y2) {
+        try {
+            mBmp.Lock ();
+            mBase = mBmp.BackBuffer;
+            int width = x2 - x1, height = y2 - y1;
+            int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+            if (width < 0) dx1 = -1; else if (width > 0) dx1 = 1;
+            if (height < 0) dy1 = -1; else if (height > 0) dy1 = 1;
+            if (width < 0) dx2 = -1; else if (width > 0) dx2 = 1;
+            int width2 = Math.Abs (width);
+            int height2 = Math.Abs (height);
+            var rect = new Int32Rect (width > 0 ? x1 : x2, height > 0 ? y1 : y2, width2, height2);
+            if (!(width2 > height2)) {
+                width2 = Math.Abs (height);
+                height2 = Math.Abs (width);
+                if (height < 0) dy2 = -1; else if (height > 0) dy2 = 1;
+                dx2 = 0;
+            }
+            int numerator = width2 / 2;
+            for (int i = 0; i <= width2; i++) {
+                SetPixel (x1, y1, 255);
+                numerator += height2;
+                if (!(numerator < width2)) {
+                    numerator -= width2;
+                    x1 += dx1;
+                    y1 += dy1;
+                } else {
+                    x1 += dx2;
+                    y1 += dy2;
+                }
+            }
+            mBmp.AddDirtyRect (rect);
+        } finally {
+            mBmp.Unlock ();
+        }
+    }
 
    void DrawMandelbrot (double xc, double yc, double zoom) {
       try {
