@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Security.Cryptography;
+using System.IO;
 
 namespace GrayBMP;
 
@@ -24,12 +26,13 @@ class LinesWin : Window {
       RenderOptions.SetEdgeMode (image, EdgeMode.Aliased);
       Content = image;
       mDX = mBmp.Width; mDY = mBmp.Height;
+      NextFrame2 ();
 
-      // Start a timer to repaint a new frame every 33 milliseconds
-      DispatcherTimer timer = new () {
-         Interval = TimeSpan.FromMilliseconds (100), IsEnabled = true,
-      };
-      timer.Tick += NextFrame;
+      //Start a timer to repaint a new frame every 33 milliseconds
+     //DispatcherTimer timer = new () {
+     //   Interval = TimeSpan.FromMilliseconds (100), IsEnabled = true,
+     //};
+     // timer.Tick += NextFrame2;
    }
    readonly GrayBMP mBmp;
    readonly int mDX, mDY;
@@ -48,6 +51,21 @@ class LinesWin : Window {
       }
    }
    Random R = new ();
+
+   void NextFrame2 () {
+      using (new BlockTimer ("POlygon fill")) {
+         mBmp.Begin ();
+         mBmp.Clear (0);
+         PolyFill p = new PolyFill ();
+         foreach (var line in File.ReadAllLines ("c:/etc/leaf-fill.txt")) {
+            var pts = line.Split ().Select (int.Parse).ToArray ();
+            p.AddLine (pts[0], pts[1], pts[2], pts[3]);
+         }
+         p.Sort ();
+         p.Fill (mBmp, 255);
+         mBmp.End ();
+      }
+   }
 }
 
 class BlockTimer : IDisposable {
