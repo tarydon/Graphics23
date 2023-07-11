@@ -3,7 +3,8 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
-using System.Windows.Threading;
+using System.IO;
+using System.Reflection;
 
 namespace GrayBMP;
 
@@ -24,15 +25,45 @@ class LinesWin : Window {
       RenderOptions.SetEdgeMode (image, EdgeMode.Aliased);
       Content = image;
       mDX = mBmp.Width; mDY = mBmp.Height;
-
+      LoadPolyFill ();
       // Start a timer to repaint a new frame every 33 milliseconds
-      DispatcherTimer timer = new () {
-         Interval = TimeSpan.FromMilliseconds (100), IsEnabled = true,
-      };
-      timer.Tick += NextFrame;
+      //DispatcherTimer timer = new () {
+      //   Interval = TimeSpan.FromMilliseconds (100), IsEnabled = true,
+      //};
+      //timer.Tick += NextFrame;
    }
    readonly GrayBMP mBmp;
    readonly int mDX, mDY;
+
+   void LoadPolyFill () {
+      var leafLines = new List<int> ();
+      using (new BlockTimer ("Fill Poly")) {
+         using (var sr = new StreamReader (Assembly.GetExecutingAssembly ().GetManifestResourceStream ("GrayBMP.Res.leaf-fill.txt")))
+            leafLines = sr.ReadToEnd ().Replace ("\r\n", " ").TrimEnd ().Split (' ').Select (int.Parse).ToList ();
+         for (int i = 0; i < leafLines.Count;) {
+            if (leafLines[i + 1] != leafLines[i + 3]) // ignore horizontal lines (y1 == y2)
+               Plines.Add ((leafLines[i++], leafLines[i++], leafLines[i++], leafLines[i++]));
+            else i += 4;
+         }
+         Plines.OrderBy (p => p.Y1);
+         Fill (255);
+      }
+   }
+
+   public void Fill (int color) {
+      double yMin = Plines.Min (p => p.Y1) + 0.5, yMax = Plines.Max (p => p.Y1) - 0.5;
+      List<int> mInterSect = new ();
+      for (var yScan = yMin; yScan <= yMax; yScan++) {
+         mInterSect.Clear ();
+         foreach (var (X1, Y1, X2, Y2) in Plines) {
+            if ((Y1 < yScan && Y2 >= yScan) || (Y2 < yScan && Y1 >= yScan))
+               mInterSect.Add ((int)(X1 + (yScan - Y1) / (Y2 - Y1) * (X2 - X1)));
+         }
+         mInterSect.Order ().ToList ();
+         for (int j = 0; j < mInterSect.Count; j++)
+            mBmp.DrawHorizontalLine (mInterSect[j], mInterSect[++j], (int)yScan, color);
+      }
+   }
 
    void NextFrame (object sender, EventArgs e) {
       using (new BlockTimer ("Lines")) {
@@ -48,6 +79,7 @@ class LinesWin : Window {
       }
    }
    Random R = new ();
+   List<(int X1, int Y1, int X2, int Y2)> Plines = new ();
 }
 
 class BlockTimer : IDisposable {

@@ -105,6 +105,19 @@ class GrayBMP {
       End ();
    }
 
+   public void DrawHorizontalLine (int x1, int x2, int y, int color) {
+      Begin ();
+      byte bColor = (byte)color;
+      Check (x1, y); Check (x2, y);
+      Dirty (x1, y); Dirty (x2, y);
+      if (x2 < x1) (x2, x1) = (x1, x2);
+      unsafe {
+         byte* ptr = (byte*)(Buffer + y * mStride + x1);
+         for (int i = x1; i <= x2; i++, ptr++) *ptr = bColor;
+      };
+      End ();
+   }
+
    /// <summary>Call End after finishing the update of the bitmap</summary>
    public void End () {
       if (--mcLocks == 0) {
