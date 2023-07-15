@@ -126,6 +126,24 @@ class GrayBMP {
       End ();
    }
 
+   /// <summary>Draws a widened, by half the given width, closed polygon for the given line two end-points</summary>
+   public void DrawThickLine (int x0, int y0, int x1, int y1, int width, int color) {
+      mPFF.Reset (); mWidenedPts.Clear ();
+      var (p1, p2) = (new Point2 (x0, y0), new Point2 (x1, y1));
+      var (ang, w, delta) = (Atan2 (p2.Y - p1.Y, p2.X - p1.X) - Geo.HalfPI, width / 2, Geo.OneThirdPI);
+      for (int i = 0; i < 2; i++) {
+         var (startAng, (r, p)) = (ang, i == 0 ? (-w, p1) : (w, p2));
+         for (int j = 0; j < 4; j++, startAng += delta) 
+            mWidenedPts.Add (p.RadialMove (r, startAng).Round ());
+      }
+      // We know all the points. Draw the closed widened polyline.
+      for (int i = 0; i < 8; i++) {
+         var ((a1, b1), (a2, b2)) = (mWidenedPts[i], mWidenedPts[(i + 1) % 8]);
+         mPFF.AddLine (a1, b1, a2, b2);
+      }
+      mPFF.Fill (this, color);
+   }
+
    /// <summary>Call End after finishing the update of the bitmap</summary>
    public void End () {
       if (--mcLocks == 0) {
@@ -161,6 +179,8 @@ class GrayBMP {
    void Fatal (string message)
       => throw new InvalidOperationException (message);
 
+   readonly PolyFillFast mPFF = new ();
+   readonly List<(int X, int Y)> mWidenedPts = new ();
    readonly int mWidth, mHeight, mStride;
    readonly WriteableBitmap mBmp;
    readonly nint mBuffer;
