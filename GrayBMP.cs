@@ -126,6 +126,29 @@ class GrayBMP {
       End ();
    }
 
+   public void DrawThickLine (int x1, int y1, int x2, int y2, int width, int color) {
+      PolyFillFast polyFF = new ();
+      var scaledPts = new List<Point2> ();
+      var ptsArr = new Point2[2] { new (x1, y1), new (x2, y2) };
+      var theta = Atan2 (y2 - y1, x2 - x1);
+
+      for (int i = 0; i < ptsArr.Length; i++) {
+         var pt = ptsArr[i];
+         double angle = i == 1 ? theta - PI / 2 : theta + PI / 2;
+         for (int j = 0; j < 4; j++, angle += PI / 3)
+            scaledPts.Add (RadialMove (pt, width / 2, angle));
+      }
+      for (int i = 0; i < scaledPts.Count; i++) {
+         (int nx, int ny) = scaledPts[i].Round ();
+         (int mx, int my) = scaledPts[i == scaledPts.Count - 1 ? 0 : (i + 1)].Round ();
+         polyFF.AddLine (nx, ny, mx, my);
+      }
+      polyFF.Fill (this, color);
+
+      Point2 RadialMove (Point2 a, double d, double theta)
+         => new (a.X + d * Cos (theta), a.Y + d * Sin (theta));
+   }
+
    /// <summary>Call End after finishing the update of the bitmap</summary>
    public void End () {
       if (--mcLocks == 0) {
