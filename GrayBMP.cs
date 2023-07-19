@@ -110,6 +110,28 @@ class GrayBMP {
       End ();
    }
 
+   public void DrawThickLine (Point2 pt1, Point2 pt2, int width, int color) {
+      mPFF.Reset ();
+      mVertices.Clear ();
+      var theta = Atan2 (pt2.Y - pt1.Y, pt2.X - pt1.X);
+      AddThickPoints (pt1, theta + DEG90);
+      AddThickPoints (pt2, theta - DEG90);
+      mVertices.Add (mVertices[0]);
+      for (int i = 0; i < mVertices.Count - 1;) {
+         (int x1, int y1) = mVertices[i];
+         (int x2, int y2) = mVertices[++i];
+         mPFF.AddLine (x1, y1, x2, y2);
+      }
+      mPFF.Fill (this, color);
+
+      void AddThickPoints (Point2 pt, double initAng) {
+         for (int i = 0; i < 4; i++, initAng += DEG60)
+            mVertices.Add (RadialMove (pt, width / 2, initAng).Round ());
+      }
+
+      Point2 RadialMove (Point2 pt, double r, double theta) => new (pt.X + r * Cos (theta), pt.Y + r * Sin (theta));
+   }
+
    /// <summary>
    /// Draws a horizontal line between the two given end-points (with given shade of gray)
    /// </summary>
@@ -164,6 +186,10 @@ class GrayBMP {
    readonly int mWidth, mHeight, mStride;
    readonly WriteableBitmap mBmp;
    readonly nint mBuffer;
+   readonly PolyFillFast mPFF = new ();
+   readonly List<(int x, int y)> mVertices = new ();
+   const double DEG90 = PI / 2;
+   const double DEG60 = PI / 3;
    int mX0, mY0, mX1, mY1;    // The 'dirty rectangle'
    int mcLocks;               // Number of unmatched Begin() calls
    #endregion
