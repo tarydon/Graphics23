@@ -67,6 +67,8 @@ class PolyFillWin : Window {
       mPF.Fill (mBmp, 255);
       foreach (var (a, b) in mDwg.EnumLines (xfm))
          mBmp.DrawLine (a, b, 0);
+      foreach (var (a, b) in mDwg.ConvexHull.SelectPair ((a, b) => (a * xfm, b * xfm)))
+         mBmp.DrawLine (a, b, 0);
 
       mBmp.End ();
       mRotate++;

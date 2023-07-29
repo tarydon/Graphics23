@@ -22,6 +22,13 @@ readonly record struct Point2 (double X, double Y) {
 
    public double AngleTo (Point2 b) => Math.Atan2 (b.Y - Y, b.X - X);
    public Point2 RadialMove (double r, double th) => new (X + r * Cos (th), Y + r * Sin (th));
+   /// <summary>Gets which side this point lies w.r.t the given vector</summary>
+   /// Returns -1 for right, 0 for exactly aligned, and +1 for left
+   public int Side (Point2 a, Point2 b) {
+      double cross = (b.X - a.X) * (Y - a.Y) - (X - a.X) * (b.Y - a.Y);
+      if (cross < 0) return -1;
+      return cross > 0 ? 1 : 0;
+   }
 
    public static Vector2 operator - (Point2 a, Point2 b) => new (a.X - b.X, a.Y - b.Y);
    public static Point2 operator + (Point2 p, Vector2 v) => new (p.X + v.X, p.Y + v.Y);
@@ -130,7 +137,12 @@ class Polygon {
 class Drawing {
    public void Add (Polygon poly) {
       mPolys.Add (poly);
-      mBound = new (); 
+      Reset ();
+   }
+
+   void Reset () {
+      mBound = new ();
+      mHullPts.Clear ();
    }
 
    public IReadOnlyList<Polygon> Polys => mPolys;
@@ -150,10 +162,50 @@ class Drawing {
    }
    Bound2 mBound;
 
-   public Bound2 GetBound (Matrix2 xfm) 
-      => new Bound2 (Polys.SelectMany (a => a.Pts.Select (p => p * xfm)));
+   public Bound2 GetBound (Matrix2 xfm) => new (ConvexHull.Select (p => p * xfm));
+
+   public IReadOnlyList<Point2> ConvexHull { 
+      get {
+         if (!mHullPts.Any ()) {
+            var pts = Polys.SelectMany (a => a.Pts).ToArray ();
+            // Get the bottom-left point as the anchor point
+            Point2 pt0 = new (double.MaxValue, double.MaxValue);
+            foreach (var pt in pts) {
+               if (pt.Y < pt0.Y) { pt0 = pt; continue; }
+               else if (pt.Y.EQ (pt0.Y) && pt.X < pt0.X) pt0 = pt;
+            }
+            pts = pts.OrderBy (pt0.AngleTo).ThenBy (a => a.X).ToArray ();
+            mHullPts.Add (pts[0]); mHullPts.Add (pts[1]);
+            for (int i = 2; i < pts.Length; i++) {
+               var pt = pts[i];
+               while (mHullPts.Count > 1 && pt.Side (mHullPts[^2], mHullPts[^1]) < 0) 
+                  mHullPts.RemoveAt (mHullPts.Count - 1);
+               mHullPts.Add (pt);
+            }
+         }
+         return mHullPts;
+      }
+   }
+   List<Point2> mHullPts = new ();
 
    /// <summary>Enumerate all the lines in this drawing</summary>
    public IEnumerable<(Point2 A, Point2 B)> EnumLines (Matrix2 xfm) 
       => mPolys.SelectMany (a => a.EnumLines (xfm));
+}
+
+public static class Geo {
+   public static double Epsilon = 1e-6;
+}
+
+public static class Exptensions {
+   public static bool EQ (this double a, double b) => Abs (a - b) < Geo.Epsilon;
+   /// <summary>Given a sequence, applies the selector to each successive pair and returns the results</summary>
+   public static IEnumerable<U> SelectPair<T, U> (this IEnumerable<T> src, Func<T, T, U> selector) {
+      bool first = true;
+      T prev = default;
+      foreach (var item in src) {
+         if (!first) yield return selector (prev, item);
+         prev = item; first = false;
+      }
+   }
 }
